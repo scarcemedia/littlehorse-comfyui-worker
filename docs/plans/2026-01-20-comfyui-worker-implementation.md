@@ -125,6 +125,24 @@ def test_queue_status_detects_prompt_id(httpx_mock):
 
     client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
     assert client.is_in_queue("abc") is True
+
+
+def test_queue_status_retries_on_request_error(httpx_mock):
+    import httpx
+
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    request = httpx.Request("GET", "http://comfy/queue")
+    httpx_mock.add_exception(httpx.RequestError("boom", request=request))
+    httpx_mock.add_response(
+        method="GET",
+        url="http://comfy/queue",
+        json={"queue_running": [["abc", 0]], "queue_pending": []},
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.is_in_queue("abc") is True
+    assert len(httpx_mock.get_requests()) == 2
 ```
 
 **Step 2: Run test to verify it fails**
@@ -145,17 +163,26 @@ class ComfyUiClient:
         self._retries = retries
 
     def is_in_queue(self, prompt_id: str) -> bool:
-        response = httpx.get(f"{self._base_url}/queue", timeout=self._timeout)
-        response.raise_for_status()
-        payload = response.json()
-        running = {item[0] for item in payload.get("queue_running", [])}
-        pending = {item[0] for item in payload.get("queue_pending", [])}
-        return prompt_id in running or prompt_id in pending
+        for attempt in range(self._retries + 1):
+            try:
+                response = httpx.get(
+                    f"{self._base_url}/queue",
+                    timeout=self._timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                running = {item[0] for item in payload.get("queue_running", [])}
+                pending = {item[0] for item in payload.get("queue_pending", [])}
+                return prompt_id in running or prompt_id in pending
+            except httpx.RequestError:
+                if attempt >= self._retries:
+                    raise
+        return False
 ```
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/test_comfyui_client.py::test_queue_status_detects_prompt_id -v`
+Run: `pytest tests/test_comfyui_client.py::test_queue_status_detects_prompt_id tests/test_comfyui_client.py::test_queue_status_retries_on_request_error -v`
 Expected: PASS
 
 **Step 5: Commit**
