@@ -94,3 +94,27 @@ def test_worker_accepts_empty_history():
         history_timeout=1,
     )
     assert results["outputs"] == []
+
+
+def test_worker_preserves_absolute_outputs():
+    from comfyui_worker.worker import execute_workflow
+
+    class StubClient:
+        def submit_prompt(self, workflow):
+            return "pid"
+
+        def is_in_queue(self, prompt_id):
+            return False
+
+        def get_history(self, prompt_id):
+            return {"outputs": {"1": {"images": [{"filename": "/abs/img.png"}]}}}
+
+    results = execute_workflow(
+        StubClient(),
+        {"nodes": {}},
+        "/outputs",
+        lambda *_: None,
+        poll_interval=0,
+        history_timeout=1,
+    )
+    assert results["outputs"] == ["/abs/img.png"]
