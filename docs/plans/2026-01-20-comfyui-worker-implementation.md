@@ -6,7 +6,7 @@
 
 **Architecture:** A thin worker module registers the `execute-comfyui-workflow` task and delegates work to a ComfyUI HTTP client and a history parser. The worker polls `/queue` until the prompt leaves, then polls `/history/{prompt_id}` until completion.
 
-**Tech Stack:** Python 3.11, uv, LittleHorse Python SDK, httpx, pydantic, pytest.
+**Tech Stack:** Python 3.11, uv, LittleHorse Python SDK (`littlehorse-client`), httpx, pydantic, pytest (dev group).
 
 ### Task 1: Project skeleton + uv setup
 
