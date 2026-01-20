@@ -25,11 +25,20 @@ class ComfyUiClient:
         return False
 
     def submit_prompt(self, workflow: dict) -> str:
-        response = httpx.post(
-            f"{self._base_url}/prompt",
-            json={"prompt": workflow},
-            timeout=self._timeout,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return payload["prompt_id"]
+        for attempt in range(self._retries + 1):
+            try:
+                response = httpx.post(
+                    f"{self._base_url}/prompt",
+                    json={"prompt": workflow},
+                    timeout=self._timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                prompt_id = payload.get("prompt_id")
+                if not prompt_id:
+                    raise ValueError("ComfyUI response missing prompt_id")
+                return prompt_id
+            except httpx.RequestError:
+                if attempt >= self._retries:
+                    raise
+        raise RuntimeError("unreachable")

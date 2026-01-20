@@ -212,6 +212,40 @@ def test_submits_prompt_returns_id(httpx_mock):
 
     client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
     assert client.submit_prompt({"nodes": {}}) == "pid"
+
+
+def test_submits_prompt_requires_prompt_id(httpx_mock):
+    import pytest
+
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://comfy/prompt",
+        json={},
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    with pytest.raises(ValueError, match="prompt_id"):
+        client.submit_prompt({"nodes": {}})
+
+
+def test_submits_prompt_retries_on_request_error(httpx_mock):
+    import httpx
+
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    request = httpx.Request("POST", "http://comfy/prompt")
+    httpx_mock.add_exception(httpx.RequestError("boom", request=request))
+    httpx_mock.add_response(
+        method="POST",
+        url="http://comfy/prompt",
+        json={"prompt_id": "pid"},
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.submit_prompt({"nodes": {}}) == "pid"
+    assert len(httpx_mock.get_requests()) == 2
 ```
 
 **Step 2: Run test to verify it fails**
@@ -223,19 +257,28 @@ Expected: FAIL because `submit_prompt` does not exist.
 
 ```python
     def submit_prompt(self, workflow: dict) -> str:
-        response = httpx.post(
-            f"{self._base_url}/prompt",
-            json={"prompt": workflow},
-            timeout=self._timeout,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return payload["prompt_id"]
+        for attempt in range(self._retries + 1):
+            try:
+                response = httpx.post(
+                    f"{self._base_url}/prompt",
+                    json={"prompt": workflow},
+                    timeout=self._timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                prompt_id = payload.get("prompt_id")
+                if not prompt_id:
+                    raise ValueError("ComfyUI response missing prompt_id")
+                return prompt_id
+            except httpx.RequestError:
+                if attempt >= self._retries:
+                    raise
+        raise RuntimeError("unreachable")
 ```
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/test_comfyui_client.py::test_submits_prompt_returns_id -v`
+Run: `pytest tests/test_comfyui_client.py::test_submits_prompt_returns_id tests/test_comfyui_client.py::test_submits_prompt_requires_prompt_id tests/test_comfyui_client.py::test_submits_prompt_retries_on_request_error -v`
 Expected: PASS
 
 **Step 5: Commit**
