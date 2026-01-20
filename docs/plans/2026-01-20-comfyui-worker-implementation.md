@@ -518,6 +518,16 @@ def test_main_builds_worker_with_threads_env(monkeypatch):
 
     monkeypatch.setenv("LHW_NUM_WORKER_THREADS", "1")
     assert build_worker() is not None
+
+
+def test_main_requires_threads_env(monkeypatch):
+    import pytest
+
+    from comfyui_worker.main import build_worker
+
+    monkeypatch.delenv("LHW_NUM_WORKER_THREADS", raising=False)
+    with pytest.raises(ValueError, match="LHW_NUM_WORKER_THREADS"):
+        build_worker()
 ```
 
 **Step 2: Run test to verify it fails**
@@ -528,13 +538,21 @@ Expected: FAIL because `build_worker` does not exist.
 **Step 3: Write minimal implementation**
 
 ```python
+import os
+
+
 def build_worker():
+    threads = os.getenv("LHW_NUM_WORKER_THREADS")
+    if not threads:
+        raise ValueError("LHW_NUM_WORKER_THREADS must be set to 1")
+    if threads != "1":
+        raise ValueError("LHW_NUM_WORKER_THREADS must be set to 1")
     return object()
 ```
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/test_main.py::test_main_builds_worker_with_threads_env -v`
+Run: `pytest tests/test_main.py::test_main_builds_worker_with_threads_env tests/test_main.py::test_main_requires_threads_env -v`
 Expected: PASS
 
 **Step 5: Commit**
