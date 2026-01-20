@@ -528,6 +528,16 @@ def test_main_requires_threads_env(monkeypatch):
     monkeypatch.delenv("LHW_NUM_WORKER_THREADS", raising=False)
     with pytest.raises(ValueError, match="LHW_NUM_WORKER_THREADS"):
         build_worker()
+
+
+def test_main_rejects_non_one_threads_env(monkeypatch):
+    import pytest
+
+    from comfyui_worker.main import build_worker
+
+    monkeypatch.setenv("LHW_NUM_WORKER_THREADS", "2")
+    with pytest.raises(ValueError, match="LHW_NUM_WORKER_THREADS"):
+        build_worker()
 ```
 
 **Step 2: Run test to verify it fails**
@@ -552,7 +562,7 @@ def build_worker():
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/test_main.py::test_main_builds_worker_with_threads_env tests/test_main.py::test_main_requires_threads_env -v`
+Run: `pytest tests/test_main.py::test_main_builds_worker_with_threads_env tests/test_main.py::test_main_requires_threads_env tests/test_main.py::test_main_rejects_non_one_threads_env -v`
 Expected: PASS
 
 **Step 5: Commit**
