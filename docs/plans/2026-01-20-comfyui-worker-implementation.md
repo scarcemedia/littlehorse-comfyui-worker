@@ -343,6 +343,32 @@ def test_worker_waits_for_history_and_returns_outputs():
 
     results = execute_workflow(StubClient(), {"nodes": {}}, "/outputs", lambda *_: None)
     assert results["outputs"] == ["/outputs/img.png"]
+
+
+def test_worker_times_out_when_queue_never_clears():
+    import pytest
+
+    from comfyui_worker.worker import execute_workflow
+
+    class StubClient:
+        def submit_prompt(self, workflow):
+            return "pid"
+
+        def is_in_queue(self, prompt_id):
+            return True
+
+        def get_history(self, prompt_id):
+            return {}
+
+    with pytest.raises(TimeoutError):
+        execute_workflow(
+            StubClient(),
+            {"nodes": {}},
+            "/outputs",
+            lambda *_: None,
+            poll_interval=0,
+            history_timeout=0,
+        )
 ```
 
 **Step 2: Run test to verify it fails**
@@ -354,23 +380,47 @@ Expected: FAIL because `execute_workflow` does not exist.
 
 ```python
 from pathlib import Path
+import time
 
 from comfyui_worker.history_parser import extract_outputs
 
 
-def execute_workflow(client, workflow, output_dir, logger):
+def execute_workflow(
+    client,
+    workflow,
+    output_dir,
+    logger,
+    poll_interval=2,
+    history_timeout=600,
+):
     prompt_id = client.submit_prompt(workflow)
+    queue_start = time.monotonic()
     while client.is_in_queue(prompt_id):
+        if time.monotonic() - queue_start >= history_timeout:
+            raise TimeoutError("ComfyUI queue wait timed out")
         logger(f"prompt {prompt_id} still queued")
-    history = client.get_history(prompt_id)
+        time.sleep(poll_interval)
+
+    history_start = time.monotonic()
+    history = None
+    while not history:
+        if time.monotonic() - history_start >= history_timeout:
+            raise TimeoutError("ComfyUI history wait timed out")
+        history = client.get_history(prompt_id)
+        if not history:
+            time.sleep(poll_interval)
+
     filenames = extract_outputs(history)
-    outputs = [str(Path(output_dir) / name) for name in filenames]
+    outputs = []
+    for name in filenames:
+        path = Path(name)
+        outputs.append(str(path if path.is_absolute() else Path(output_dir) / path))
     return {"prompt_id": prompt_id, "outputs": outputs}
 ```
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/test_worker.py::test_worker_waits_for_history_and_returns_outputs -v`
+Run: `pytest tests/test_worker.py::test_worker_waits_for_history_and_returns_outputs tests/test_worker.py::test_worker_times_out_when_queue_never_clears -v`
 Expected: PASS
 
 **Step 5: Commit**
