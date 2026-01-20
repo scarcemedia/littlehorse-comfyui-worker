@@ -46,3 +46,51 @@ def test_worker_times_out_when_queue_never_clears():
             poll_interval=0,
             history_timeout=0,
         )
+
+
+def test_worker_times_out_when_history_missing():
+    from comfyui_worker.worker import execute_workflow
+
+    class StubClient:
+        def submit_prompt(self, workflow):
+            return "pid"
+
+        def is_in_queue(self, prompt_id):
+            return False
+
+        def get_history(self, prompt_id):
+            return None
+
+    with pytest.raises(TimeoutError):
+        execute_workflow(
+            StubClient(),
+            {"nodes": {}},
+            "/outputs",
+            lambda *_: None,
+            poll_interval=0,
+            history_timeout=0,
+        )
+
+
+def test_worker_accepts_empty_history():
+    from comfyui_worker.worker import execute_workflow
+
+    class StubClient:
+        def submit_prompt(self, workflow):
+            return "pid"
+
+        def is_in_queue(self, prompt_id):
+            return False
+
+        def get_history(self, prompt_id):
+            return {}
+
+    results = execute_workflow(
+        StubClient(),
+        {"nodes": {}},
+        "/outputs",
+        lambda *_: None,
+        poll_interval=0,
+        history_timeout=1,
+    )
+    assert results["outputs"] == []

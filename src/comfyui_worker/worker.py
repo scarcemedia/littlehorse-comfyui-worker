@@ -22,11 +22,11 @@ def execute_workflow(
 
     history_start = time.monotonic()
     history = None
-    while not history:
+    while history is None:
         if time.monotonic() - history_start >= history_timeout:
             raise TimeoutError("ComfyUI history wait timed out")
         history = client.get_history(prompt_id)
-        if not history:
+        if history is None:
             time.sleep(poll_interval)
 
     filenames = extract_outputs(history)
