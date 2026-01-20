@@ -27,3 +27,16 @@ def test_queue_status_retries_on_request_error(httpx_mock):
     client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
     assert client.is_in_queue("abc") is True
     assert len(httpx_mock.get_requests()) == 2
+
+
+def test_submits_prompt_returns_id(httpx_mock):
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://comfy/prompt",
+        json={"prompt_id": "pid"},
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.submit_prompt({"nodes": {}}) == "pid"

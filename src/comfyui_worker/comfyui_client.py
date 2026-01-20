@@ -23,3 +23,13 @@ class ComfyUiClient:
                 if attempt >= self._retries:
                     raise
         return False
+
+    def submit_prompt(self, workflow: dict) -> str:
+        response = httpx.post(
+            f"{self._base_url}/prompt",
+            json={"prompt": workflow},
+            timeout=self._timeout,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        return payload["prompt_id"]
