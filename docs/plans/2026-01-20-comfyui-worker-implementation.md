@@ -246,6 +246,26 @@ def test_submits_prompt_retries_on_request_error(httpx_mock):
     client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
     assert client.submit_prompt({"nodes": {}}) == "pid"
     assert len(httpx_mock.get_requests()) == 2
+
+
+def test_submits_prompt_retries_on_server_error(httpx_mock):
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://comfy/prompt",
+        status_code=500,
+        json={"error": "boom"},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://comfy/prompt",
+        json={"prompt_id": "pid"},
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.submit_prompt({"nodes": {}}) == "pid"
+    assert len(httpx_mock.get_requests()) == 2
 ```
 
 **Step 2: Run test to verify it fails**
@@ -273,12 +293,17 @@ Expected: FAIL because `submit_prompt` does not exist.
             except httpx.RequestError:
                 if attempt >= self._retries:
                     raise
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status >= 500 and attempt < self._retries:
+                    continue
+                raise
         raise RuntimeError("unreachable")
 ```
 
 **Step 4: Run test to verify it passes**
 
-Run: `pytest tests/test_comfyui_client.py::test_submits_prompt_returns_id tests/test_comfyui_client.py::test_submits_prompt_requires_prompt_id tests/test_comfyui_client.py::test_submits_prompt_retries_on_request_error -v`
+Run: `pytest tests/test_comfyui_client.py::test_submits_prompt_returns_id tests/test_comfyui_client.py::test_submits_prompt_requires_prompt_id tests/test_comfyui_client.py::test_submits_prompt_retries_on_request_error tests/test_comfyui_client.py::test_submits_prompt_retries_on_server_error -v`
 Expected: PASS
 
 **Step 5: Commit**

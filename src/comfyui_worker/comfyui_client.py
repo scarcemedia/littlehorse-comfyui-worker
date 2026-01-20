@@ -41,4 +41,9 @@ class ComfyUiClient:
             except httpx.RequestError:
                 if attempt >= self._retries:
                     raise
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status >= 500 and attempt < self._retries:
+                    continue
+                raise
         raise RuntimeError("unreachable")
