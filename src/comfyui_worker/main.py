@@ -1,5 +1,9 @@
+def build_worker():
+    return object()
+
+
 def main() -> None:
-    return None
+    build_worker()
 
 
 if __name__ == "__main__":
