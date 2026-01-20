@@ -8,9 +8,18 @@ class ComfyUiClient:
         self._retries = retries
 
     def is_in_queue(self, prompt_id: str) -> bool:
-        response = httpx.get(f"{self._base_url}/queue", timeout=self._timeout)
-        response.raise_for_status()
-        payload = response.json()
-        running = {item[0] for item in payload.get("queue_running", [])}
-        pending = {item[0] for item in payload.get("queue_pending", [])}
-        return prompt_id in running or prompt_id in pending
+        for attempt in range(self._retries + 1):
+            try:
+                response = httpx.get(
+                    f"{self._base_url}/queue",
+                    timeout=self._timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                running = {item[0] for item in payload.get("queue_running", [])}
+                pending = {item[0] for item in payload.get("queue_pending", [])}
+                return prompt_id in running or prompt_id in pending
+            except httpx.RequestError:
+                if attempt >= self._retries:
+                    raise
+        return False
