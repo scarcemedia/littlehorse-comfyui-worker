@@ -508,8 +508,6 @@ git commit -m "feat: add workflow execution loop"
 
 **Files:**
 - Modify: `src/comfyui_worker/main.py`
-- Modify: `src/comfyui_worker/config.py`
-- Modify: `src/comfyui_worker/worker.py`
 - Create: `tests/test_main.py`
 
 **Step 1: Write the failing test**
