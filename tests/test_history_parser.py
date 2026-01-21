@@ -1,4 +1,4 @@
-def test_extracts_output_filenames():
+def test_extracts_output_filenames() -> None:
     from comfyui_worker.history_parser import extract_outputs
 
     history = {

@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_config_requires_base_url():
+def test_config_requires_base_url() -> None:
     from pydantic import ValidationError
 
     from comfyui_worker.config import Settings

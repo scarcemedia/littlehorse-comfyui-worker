@@ -1,4 +1,9 @@
+import logging
+from typing import Any
+
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class ComfyUiClient:
@@ -18,13 +23,18 @@ class ComfyUiClient:
                 payload = response.json()
                 running = {item[0] for item in payload.get("queue_running", [])}
                 pending = {item[0] for item in payload.get("queue_pending", [])}
-                return prompt_id in running or prompt_id in pending
+                in_queue = prompt_id in running or prompt_id in pending
+                logger.debug(
+                    "Checked ComfyUI queue",
+                    extra={"prompt_id": prompt_id, "in_queue": in_queue},
+                )
+                return in_queue
             except httpx.RequestError:
                 if attempt >= self._retries:
                     raise
         return False
 
-    def submit_prompt(self, workflow: dict) -> str:
+    def submit_prompt(self, workflow: dict[str, Any]) -> str:
         for attempt in range(self._retries + 1):
             try:
                 response = httpx.post(
@@ -37,6 +47,10 @@ class ComfyUiClient:
                 prompt_id = payload.get("prompt_id")
                 if not prompt_id:
                     raise ValueError("ComfyUI response missing prompt_id")
+                logger.info(
+                    "Submitted ComfyUI prompt",
+                    extra={"prompt_id": prompt_id},
+                )
                 return prompt_id
             except httpx.RequestError:
                 if attempt >= self._retries:

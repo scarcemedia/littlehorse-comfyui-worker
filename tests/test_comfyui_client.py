@@ -1,7 +1,8 @@
 import pytest
+from pytest_httpx import HTTPXMock
 
 
-def test_queue_status_detects_prompt_id(httpx_mock):
+def test_queue_status_detects_prompt_id(httpx_mock: HTTPXMock) -> None:
     from comfyui_worker.comfyui_client import ComfyUiClient
 
     httpx_mock.add_response(
@@ -14,7 +15,7 @@ def test_queue_status_detects_prompt_id(httpx_mock):
     assert client.is_in_queue("abc") is True
 
 
-def test_queue_status_retries_on_request_error(httpx_mock):
+def test_queue_status_retries_on_request_error(httpx_mock: HTTPXMock) -> None:
     import httpx
 
     from comfyui_worker.comfyui_client import ComfyUiClient
@@ -32,7 +33,7 @@ def test_queue_status_retries_on_request_error(httpx_mock):
     assert len(httpx_mock.get_requests()) == 2
 
 
-def test_submits_prompt_returns_id(httpx_mock):
+def test_submits_prompt_returns_id(httpx_mock: HTTPXMock) -> None:
     from comfyui_worker.comfyui_client import ComfyUiClient
 
     httpx_mock.add_response(
@@ -45,7 +46,7 @@ def test_submits_prompt_returns_id(httpx_mock):
     assert client.submit_prompt({"nodes": {}}) == "pid"
 
 
-def test_submits_prompt_requires_prompt_id(httpx_mock):
+def test_submits_prompt_requires_prompt_id(httpx_mock: HTTPXMock) -> None:
     from comfyui_worker.comfyui_client import ComfyUiClient
 
     httpx_mock.add_response(
@@ -59,7 +60,7 @@ def test_submits_prompt_requires_prompt_id(httpx_mock):
         client.submit_prompt({"nodes": {}})
 
 
-def test_submits_prompt_retries_on_request_error(httpx_mock):
+def test_submits_prompt_retries_on_request_error(httpx_mock: HTTPXMock) -> None:
     import httpx
 
     from comfyui_worker.comfyui_client import ComfyUiClient
@@ -77,7 +78,7 @@ def test_submits_prompt_retries_on_request_error(httpx_mock):
     assert len(httpx_mock.get_requests()) == 2
 
 
-def test_submits_prompt_retries_on_server_error(httpx_mock):
+def test_submits_prompt_retries_on_server_error(httpx_mock: HTTPXMock) -> None:
     from comfyui_worker.comfyui_client import ComfyUiClient
 
     httpx_mock.add_response(
