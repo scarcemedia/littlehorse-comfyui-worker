@@ -5,6 +5,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN pip install --no-cache-dir uv==0.9.18 && uv sync --frozen
 
-COPY src ./src
+COPY comfyui_worker ./comfyui_worker
+COPY main.py ./
 
-CMD ["python", "-m", "comfyui_worker.main"]
+CMD ["python", "main.py"]

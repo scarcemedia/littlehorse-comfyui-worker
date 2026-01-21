@@ -20,8 +20,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/comfyui_worker"]
+packages = ["comfyui_worker"]
 
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
