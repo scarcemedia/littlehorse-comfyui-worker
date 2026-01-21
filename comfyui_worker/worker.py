@@ -1,5 +1,8 @@
 from pathlib import Path
 import time
+from typing import Any
+
+from littlehorse.worker import WorkerContext
 
 from comfyui_worker.history_parser import extract_outputs
 
@@ -35,3 +38,24 @@ def execute_workflow(
         path = Path(name)
         outputs.append(str(path if path.is_absolute() else Path(output_dir) / path))
     return {"prompt_id": prompt_id, "outputs": outputs}
+
+
+def execute_comfyui_workflow(
+    workflow: dict[str, Any],
+    ctx: WorkerContext,
+    client,
+    output_dir: str,
+    poll_interval: int = 2,
+    history_timeout: int = 600,
+) -> dict[str, Any]:
+    ctx.log("submit workflow")
+    result = execute_workflow(
+        client,
+        workflow,
+        output_dir,
+        ctx.log,
+        poll_interval=poll_interval,
+        history_timeout=history_timeout,
+    )
+    ctx.log("workflow complete")
+    return result
