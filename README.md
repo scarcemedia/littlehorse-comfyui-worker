@@ -1,5 +1,8 @@
 # ComfyUI LittleHorse Worker
 
+[![Docker image](https://img.shields.io/badge/ghcr.io%20latest-2026.01.00-2496ed?logo=docker&logoColor=white)](https://ghcr.io/scarcemedia/littlehorse-comfyui-worker:2026.01.00)
+[![Latest release](https://img.shields.io/github/v/release/scarcemedia/littlehorse-comfyui-worker?display_name=tag)](https://github.com/scarcemedia/littlehorse-comfyui-worker/releases/latest)
+
 This project provides a LittleHorse worker sidecar that executes ComfyUI workflows via HTTP.
 
 ## Required configuration
@@ -44,7 +47,7 @@ Container snippet for a StatefulSet running ComfyUI. The sidecar shares the outp
       mountPath: /comfyui/output
 
 - name: comfyui-worker
-  image: worker:latest
+  image: ghcr.io/scarcemedia/littlehorse-comfyui-worker:2026.01.00
   env:
     - name: LHW_TASK_NAME
       value: execute-comfyui-workflow
