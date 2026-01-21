@@ -5,9 +5,21 @@ from typing import Any, Callable
 
 from littlehorse.worker import WorkerContext
 
-from comfyui_worker.history_parser import extract_outputs
-
 module_logger = logging.getLogger(__name__)
+
+
+def _extract_outputs(history: dict[str, Any]) -> list[str]:
+    outputs: list[str] = []
+    for node in history.get("outputs", {}).values():
+        for image in node.get("images", []):
+            filename = image.get("filename")
+            if filename:
+                outputs.append(filename)
+    module_logger.debug(
+        "Parsed history outputs",
+        extra={"output_count": len(outputs)},
+    )
+    return outputs
 
 
 def execute_workflow(
@@ -36,7 +48,7 @@ def execute_workflow(
         if history is None:
             time.sleep(poll_interval)
 
-    filenames = extract_outputs(history)
+    filenames = _extract_outputs(history)
     outputs = []
     for name in filenames:
         path = Path(name)

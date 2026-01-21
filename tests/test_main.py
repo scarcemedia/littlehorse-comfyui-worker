@@ -50,3 +50,4 @@ def test_main_configures_logging_env(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
     configure_logging()
     assert logging.getLogger().level == logging.DEBUG
+
