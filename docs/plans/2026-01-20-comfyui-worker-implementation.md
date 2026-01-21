@@ -625,7 +625,7 @@ git commit -m "feat: add uv-based Docker image"
 ```python
 def test_readme_mentions_lhw_threads():
     readme = Path("README.md").read_text()
-    assert "LHW_NUM_WORKER_THREADS" in readme
+    assert "LHW_NUM_WORKER_THREADS=1" in readme
 ```
 
 **Step 2: Run test to verify it fails**
