@@ -31,3 +31,17 @@ def test_main_requires_task_name_env(monkeypatch):
     monkeypatch.setenv("LHW_NUM_WORKER_THREADS", "1")
     with pytest.raises(ValueError, match="LHW_TASK_NAME"):
         build_worker()
+
+
+def test_main_configures_logging_env(monkeypatch):
+    import logging
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+    import main
+
+    monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+    main.configure_logging()
+    assert logging.getLogger().level == logging.DEBUG
