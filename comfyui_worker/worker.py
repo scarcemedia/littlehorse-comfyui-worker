@@ -1,7 +1,8 @@
+import asyncio
 from pathlib import Path
 import logging
 import time
-from typing import Any, Callable
+from typing import Any, Awaitable, Callable
 
 from littlehorse.worker import WorkerContext
 
@@ -87,3 +88,34 @@ def execute_comfyui_workflow(
         extra={"prompt_id": result.get("prompt_id")},
     )
     return result
+
+
+def build_task_handler(
+    client: Any,
+    output_dir: str,
+    poll_interval: int,
+    history_timeout: int,
+) -> Callable[[dict[str, Any], WorkerContext], Awaitable[dict[str, Any]]]:
+    async def handler(workflow: dict[str, Any], ctx: WorkerContext) -> dict[str, Any]:
+        ctx.log("submit workflow")
+        module_logger.info(
+            "Executing task",
+            extra={"workflow_keys": list(workflow.keys())},
+        )
+        result = await asyncio.to_thread(
+            execute_workflow,
+            client,
+            workflow,
+            output_dir,
+            ctx.log,
+            poll_interval,
+            history_timeout,
+        )
+        ctx.log("workflow complete")
+        module_logger.info(
+            "Task complete",
+            extra={"prompt_id": result.get("prompt_id")},
+        )
+        return result
+
+    return handler

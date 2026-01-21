@@ -1,6 +1,7 @@
-from typing import Any
+from typing import Any, cast
 
 import pytest
+from littlehorse.worker import WorkerContext
 
 
 def test_worker_extracts_outputs_inline() -> None:
@@ -152,7 +153,7 @@ def test_task_entrypoint_logs_progress() -> None:
     ctx = StubCtx()
     result = execute_comfyui_workflow(
         {"nodes": {}},
-        ctx=ctx,
+        ctx=cast(WorkerContext, ctx),
         client=StubClient(),
         output_dir="/outputs",
         poll_interval=0,
@@ -161,3 +162,39 @@ def test_task_entrypoint_logs_progress() -> None:
 
     assert result["prompt_id"] == "pid"
     assert "submit" in ctx.logs[0]
+
+
+@pytest.mark.anyio
+async def test_task_handler_logs_progress() -> None:
+    from comfyui_worker.worker import build_task_handler
+
+    class StubCtx:
+        def __init__(self) -> None:
+            self.logs: list[str] = []
+
+        def log(self, message: str) -> None:
+            self.logs.append(message)
+
+    class StubClient:
+        def submit_prompt(self, workflow: dict[str, Any]) -> str:
+            return "pid"
+
+        def is_in_queue(self, prompt_id: str) -> bool:
+            return False
+
+        def get_history(self, prompt_id: str) -> dict[str, Any]:
+            return {"outputs": {"1": {"images": [{"filename": "img.png"}]}}}
+
+    handler = build_task_handler(
+        client=StubClient(),
+        output_dir="/outputs",
+        poll_interval=0,
+        history_timeout=1,
+    )
+    ctx = StubCtx()
+    result = await handler({"nodes": {}}, cast(WorkerContext, ctx))
+
+    assert result["prompt_id"] == "pid"
+    assert "submit" in ctx.logs[0]
+    assert "workflow complete" in ctx.logs
+    assert result["outputs"] == ["/outputs/img.png"]

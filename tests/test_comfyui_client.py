@@ -96,3 +96,16 @@ def test_submits_prompt_retries_on_server_error(httpx_mock: HTTPXMock) -> None:
     client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
     assert client.submit_prompt({"nodes": {}}) == "pid"
     assert len(httpx_mock.get_requests()) == 2
+
+
+def test_get_history_returns_prompt_entry(httpx_mock: HTTPXMock) -> None:
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    httpx_mock.add_response(
+        method="GET",
+        url="http://comfy/history/pid",
+        json={"pid": {"outputs": {}}},
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.get_history("pid") == {"outputs": {}}
