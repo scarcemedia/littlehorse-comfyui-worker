@@ -1,6 +1,7 @@
-from typing import Any
+from typing import Any, cast
 
 from _pytest.monkeypatch import MonkeyPatch
+from littlehorse.worker import WorkerContext
 
 import pytest
 
@@ -31,7 +32,9 @@ def test_worker_waits_for_history_and_returns_outputs() -> None:
             self.calls.append("history")
             return {"outputs": {"1": {"images": [{"filename": "img.png"}]}}}
 
-    results = _execute_workflow(StubClient(), {"nodes": {}}, "/outputs", lambda *_: None, 2, 600)
+    results = _execute_workflow(
+        StubClient(), {"nodes": {}}, "/outputs", lambda *_: None, 2, 600
+    )
     assert results["outputs"] == ["/outputs/img.png"]
 
 
@@ -160,7 +163,44 @@ def test_task_entrypoint_logs_progress(monkeypatch: MonkeyPatch) -> None:
     )
 
     ctx = StubCtx()
-    result = execute_comfyui_workflow({"nodes": {}}, ctx)
+    result = execute_comfyui_workflow({"nodes": {}}, cast(WorkerContext, ctx))
 
     assert result["prompt_id"] == "pid"
     assert "submit" in ctx.logs[0]
+
+
+@pytest.mark.anyio
+async def test_build_task_handler_executes_workflow() -> None:
+    from comfyui_worker.worker import build_task_handler
+
+    class StubCtx:
+        def __init__(self) -> None:
+            self.logs: list[str] = []
+
+        def log(self, message: str) -> None:
+            self.logs.append(message)
+
+    class StubClient:
+        def submit_prompt(self, workflow: dict[str, Any]) -> str:
+            return "pid"
+
+        def is_in_queue(self, prompt_id: str) -> bool:
+            return False
+
+        def get_history(self, prompt_id: str) -> dict[str, Any]:
+            return {"outputs": {"1": {"images": [{"filename": "img.png"}]}}}
+
+    handler = build_task_handler(
+        client=StubClient(),
+        output_dir="/outputs",
+        poll_interval=0,
+        history_timeout=1,
+    )
+
+    ctx = StubCtx()
+    result = await handler({"nodes": {}}, cast(WorkerContext, ctx))
+
+    assert result["prompt_id"] == "pid"
+    assert result["outputs"] == ["/outputs/img.png"]
+    assert "submit workflow" in ctx.logs
+    assert "workflow complete" in ctx.logs
