@@ -49,6 +49,20 @@ def test_load_settings_reads_env(monkeypatch: MonkeyPatch) -> None:
     assert settings.comfyui_poll_interval_sec == 5
 
 
+def test_load_settings_logs_config(
+    monkeypatch: MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from comfyui_worker.config import load_settings
+
+    monkeypatch.setenv("COMFYUI_BASE_URL", "http://test:8188")
+    monkeypatch.setenv("COMFYUI_OUTPUT_DIR", "/test/output")
+
+    with caplog.at_level("INFO"):
+        load_settings()
+
+    assert "Loaded settings" in caplog.text
+
+
 def test_load_settings_raises_without_required_env(monkeypatch: MonkeyPatch) -> None:
     from comfyui_worker.config import load_settings
 

@@ -22,7 +22,7 @@ def load_settings() -> Settings:
     if not base_url or not output_dir:
         raise ValueError("COMFYUI_BASE_URL and COMFYUI_OUTPUT_DIR must be set")
 
-    return Settings(
+    settings = Settings(
         comfyui_base_url=base_url,
         comfyui_output_dir=output_dir,
         comfyui_poll_interval_sec=int(os.getenv("COMFYUI_POLL_INTERVAL_SEC", "2")),
@@ -30,3 +30,17 @@ def load_settings() -> Settings:
         comfyui_http_timeout_sec=float(os.getenv("COMFYUI_HTTP_TIMEOUT_SEC", "30.0")),
         comfyui_http_retries=int(os.getenv("COMFYUI_HTTP_RETRIES", "3")),
     )
+
+    logger.info(
+        "Loaded settings",
+        extra={
+            "comfyui_base_url": settings.comfyui_base_url,
+            "comfyui_output_dir": settings.comfyui_output_dir,
+            "poll_interval_sec": settings.comfyui_poll_interval_sec,
+            "history_timeout_sec": settings.comfyui_history_timeout_sec,
+            "http_timeout_sec": settings.comfyui_http_timeout_sec,
+            "http_retries": settings.comfyui_http_retries,
+        },
+    )
+
+    return settings
