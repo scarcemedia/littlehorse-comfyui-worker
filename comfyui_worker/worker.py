@@ -1,9 +1,12 @@
 from pathlib import Path
 import logging
 import time
-from typing import Any, Callable
+from typing import Any
 
 from littlehorse.worker import WorkerContext
+
+from comfyui_worker.comfyui_client import ComfyUiClient
+from comfyui_worker.config import load_settings
 
 module_logger = logging.getLogger(__name__)
 
@@ -22,13 +25,13 @@ def _extract_outputs(history: dict[str, Any]) -> list[str]:
     return outputs
 
 
-def execute_workflow(
-    client: Any,
+def _execute_workflow(
+    client: ComfyUiClient,
     workflow: dict[str, Any],
     output_dir: str,
-    logger: Callable[[str], None],
-    poll_interval: int = 2,
-    history_timeout: int = 600,
+    logger: Any,
+    poll_interval: int,
+    history_timeout: int,
 ) -> dict[str, Any]:
     prompt_id = client.submit_prompt(workflow)
     module_logger.info("Submitted workflow", extra={"prompt_id": prompt_id})
@@ -63,23 +66,26 @@ def execute_workflow(
 def execute_comfyui_workflow(
     workflow: dict[str, Any],
     ctx: WorkerContext,
-    client: Any,
-    output_dir: str,
-    poll_interval: int = 2,
-    history_timeout: int = 600,
 ) -> dict[str, Any]:
+    settings = load_settings()
+    client = ComfyUiClient(
+        base_url=settings.comfyui_base_url,
+        timeout=settings.comfyui_http_timeout_sec,
+        retries=settings.comfyui_http_retries,
+    )
+
     ctx.log("submit workflow")
     module_logger.info(
         "Executing task",
         extra={"workflow_keys": list(workflow.keys())},
     )
-    result = execute_workflow(
+    result = _execute_workflow(
         client,
         workflow,
-        output_dir,
+        settings.comfyui_output_dir,
         ctx.log,
-        poll_interval=poll_interval,
-        history_timeout=history_timeout,
+        poll_interval=settings.comfyui_poll_interval_sec,
+        history_timeout=settings.comfyui_history_timeout_sec,
     )
     ctx.log("workflow complete")
     module_logger.info(
