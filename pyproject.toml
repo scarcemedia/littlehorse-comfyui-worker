@@ -15,6 +15,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "pytest-anyio>=0.0.0",
   "pytest-httpx>=0.30.0",
   "pytest>=8.0.0",
   "ruff>=0.14.13",

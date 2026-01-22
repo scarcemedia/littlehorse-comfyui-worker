@@ -12,6 +12,23 @@ class ComfyUiClient:
         self._timeout = timeout
         self._retries = retries
 
+    def health_check(self) -> bool:
+        """Return True if ComfyUI /queue endpoint responds successfully."""
+        try:
+            response = httpx.get(
+                f"{self._base_url}/queue",
+                timeout=self._timeout,
+            )
+            response.raise_for_status()
+            logger.debug("ComfyUI health check passed")
+            return True
+        except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+            logger.debug(
+                "ComfyUI health check failed",
+                extra={"error": str(exc)},
+            )
+            return False
+
     def is_in_queue(self, prompt_id: str) -> bool:
         for attempt in range(self._retries + 1):
             try:

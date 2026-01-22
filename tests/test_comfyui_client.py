@@ -126,3 +126,41 @@ def test_client_get_history_returns_history_when_present(
     result = client.get_history("pid")
 
     assert result == history_data
+
+
+def test_health_check_returns_true_on_success(httpx_mock: HTTPXMock) -> None:
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    httpx_mock.add_response(
+        method="GET",
+        url="http://comfy/queue",
+        json={"queue_running": [], "queue_pending": []},
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.health_check() is True
+
+
+def test_health_check_returns_false_on_connection_error(httpx_mock: HTTPXMock) -> None:
+    import httpx
+
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    request = httpx.Request("GET", "http://comfy/queue")
+    httpx_mock.add_exception(httpx.ConnectError("Connection refused", request=request))
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.health_check() is False
+
+
+def test_health_check_returns_false_on_http_error(httpx_mock: HTTPXMock) -> None:
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    httpx_mock.add_response(
+        method="GET",
+        url="http://comfy/queue",
+        status_code=500,
+    )
+
+    client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
+    assert client.health_check() is False
