@@ -61,3 +61,29 @@ class ComfyUiClient:
                     continue
                 raise
         raise RuntimeError("unreachable")
+
+    def get_history(self, prompt_id: str) -> dict[str, Any] | None:
+        for attempt in range(self._retries + 1):
+            try:
+                response = httpx.get(
+                    f"{self._base_url}/history/{prompt_id}",
+                    timeout=self._timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                history = payload.get(prompt_id)
+                if history is None:
+                    logger.debug(
+                        "History not yet available",
+                        extra={"prompt_id": prompt_id},
+                    )
+                    return None
+                logger.debug(
+                    "Retrieved history",
+                    extra={"prompt_id": prompt_id},
+                )
+                return history
+            except httpx.RequestError:
+                if attempt >= self._retries:
+                    raise
+        return None

@@ -96,3 +96,33 @@ def test_submits_prompt_retries_on_server_error(httpx_mock: HTTPXMock) -> None:
     client = ComfyUiClient(base_url="http://comfy", timeout=5, retries=1)
     assert client.submit_prompt({"nodes": {}}) == "pid"
     assert len(httpx_mock.get_requests()) == 2
+
+
+def test_client_get_history_returns_none_when_missing(
+    httpx_mock: HTTPXMock,
+) -> None:
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    httpx_mock.add_response(url="http://localhost:8188/history/pid", json={})
+
+    client = ComfyUiClient("http://localhost:8188", timeout=5.0, retries=0)
+    result = client.get_history("pid")
+
+    assert result is None
+
+
+def test_client_get_history_returns_history_when_present(
+    httpx_mock: HTTPXMock,
+) -> None:
+    from comfyui_worker.comfyui_client import ComfyUiClient
+
+    history_data = {"outputs": {"1": {"images": [{"filename": "img.png"}]}}}
+    httpx_mock.add_response(
+        url="http://localhost:8188/history/pid",
+        json={"pid": history_data},
+    )
+
+    client = ComfyUiClient("http://localhost:8188", timeout=5.0, retries=0)
+    result = client.get_history("pid")
+
+    assert result == history_data

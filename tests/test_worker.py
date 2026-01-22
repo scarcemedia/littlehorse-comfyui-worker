@@ -1,5 +1,7 @@
 from typing import Any
 
+from _pytest.monkeypatch import MonkeyPatch
+
 import pytest
 
 
@@ -11,7 +13,7 @@ def test_worker_extracts_outputs_inline() -> None:
 
 
 def test_worker_waits_for_history_and_returns_outputs() -> None:
-    from comfyui_worker.worker import execute_workflow
+    from comfyui_worker.worker import _execute_workflow
 
     class StubClient:
         def __init__(self) -> None:
@@ -29,12 +31,12 @@ def test_worker_waits_for_history_and_returns_outputs() -> None:
             self.calls.append("history")
             return {"outputs": {"1": {"images": [{"filename": "img.png"}]}}}
 
-    results = execute_workflow(StubClient(), {"nodes": {}}, "/outputs", lambda *_: None)
+    results = _execute_workflow(StubClient(), {"nodes": {}}, "/outputs", lambda *_: None, 2, 600)
     assert results["outputs"] == ["/outputs/img.png"]
 
 
 def test_worker_times_out_when_queue_never_clears() -> None:
-    from comfyui_worker.worker import execute_workflow
+    from comfyui_worker.worker import _execute_workflow
 
     class StubClient:
         def submit_prompt(self, workflow: dict[str, Any]) -> str:
@@ -47,7 +49,7 @@ def test_worker_times_out_when_queue_never_clears() -> None:
             return {}
 
     with pytest.raises(TimeoutError):
-        execute_workflow(
+        _execute_workflow(
             StubClient(),
             {"nodes": {}},
             "/outputs",
@@ -58,7 +60,7 @@ def test_worker_times_out_when_queue_never_clears() -> None:
 
 
 def test_worker_times_out_when_history_missing() -> None:
-    from comfyui_worker.worker import execute_workflow
+    from comfyui_worker.worker import _execute_workflow
 
     class StubClient:
         def submit_prompt(self, workflow: dict[str, Any]) -> str:
@@ -71,7 +73,7 @@ def test_worker_times_out_when_history_missing() -> None:
             return None
 
     with pytest.raises(TimeoutError):
-        execute_workflow(
+        _execute_workflow(
             StubClient(),
             {"nodes": {}},
             "/outputs",
@@ -82,7 +84,7 @@ def test_worker_times_out_when_history_missing() -> None:
 
 
 def test_worker_accepts_empty_history() -> None:
-    from comfyui_worker.worker import execute_workflow
+    from comfyui_worker.worker import _execute_workflow
 
     class StubClient:
         def submit_prompt(self, workflow: dict[str, Any]) -> str:
@@ -94,7 +96,7 @@ def test_worker_accepts_empty_history() -> None:
         def get_history(self, prompt_id: str) -> dict[str, Any]:
             return {}
 
-    results = execute_workflow(
+    results = _execute_workflow(
         StubClient(),
         {"nodes": {}},
         "/outputs",
@@ -106,7 +108,7 @@ def test_worker_accepts_empty_history() -> None:
 
 
 def test_worker_preserves_absolute_outputs() -> None:
-    from comfyui_worker.worker import execute_workflow
+    from comfyui_worker.worker import _execute_workflow
 
     class StubClient:
         def submit_prompt(self, workflow: dict[str, Any]) -> str:
@@ -118,7 +120,7 @@ def test_worker_preserves_absolute_outputs() -> None:
         def get_history(self, prompt_id: str) -> dict[str, Any]:
             return {"outputs": {"1": {"images": [{"filename": "/abs/img.png"}]}}}
 
-    results = execute_workflow(
+    results = _execute_workflow(
         StubClient(),
         {"nodes": {}},
         "/outputs",
@@ -129,7 +131,7 @@ def test_worker_preserves_absolute_outputs() -> None:
     assert results["outputs"] == ["/abs/img.png"]
 
 
-def test_task_entrypoint_logs_progress() -> None:
+def test_task_entrypoint_logs_progress(monkeypatch: MonkeyPatch) -> None:
     from comfyui_worker.worker import execute_comfyui_workflow
 
     class StubCtx:
@@ -149,15 +151,16 @@ def test_task_entrypoint_logs_progress() -> None:
         def get_history(self, prompt_id: str) -> dict[str, Any]:
             return {"outputs": {"1": {"images": [{"filename": "img.png"}]}}}
 
-    ctx = StubCtx()
-    result = execute_comfyui_workflow(
-        {"nodes": {}},
-        ctx=ctx,
-        client=StubClient(),
-        output_dir="/outputs",
-        poll_interval=0,
-        history_timeout=1,
+    monkeypatch.setenv("COMFYUI_BASE_URL", "http://localhost:8188")
+    monkeypatch.setenv("COMFYUI_OUTPUT_DIR", "/outputs")
+
+    monkeypatch.setattr(
+        "comfyui_worker.worker.ComfyUiClient",
+        lambda base_url, timeout, retries: StubClient(),
     )
+
+    ctx = StubCtx()
+    result = execute_comfyui_workflow({"nodes": {}}, ctx)
 
     assert result["prompt_id"] == "pid"
     assert "submit" in ctx.logs[0]
